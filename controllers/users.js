@@ -4,16 +4,9 @@ const User = require('../models/user');
 module.exports.getUsers = (req, res) => {
   User.find({})
     .then((users) => res.status(200).send({ data: users }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res
-          .status(400)
-          .send({ message: 'Некорректно указан id пользователя' });
-      }
-      return res.status(500).send({
-        message: 'Произошла ошибка при получении данных о пользователях',
-      });
-    });
+    .catch(() => res.status(500).send({
+      message: 'Произошла ошибка при получении данных о пользователях',
+    }));
 };
 
 // получение пользователя по id

@@ -3,16 +3,9 @@ const Card = require('../models/card');
 module.exports.getCard = (req, res) => {
   Card.find({})
     .then((card) => res.status(200).send({ data: card }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Переданы некорректные данные при создании карточки',
-        });
-      }
-      return res.status(500).send({
-        message: 'Произошла ошибка при получении карточек',
-      });
-    });
+    .catch(() => res.status(500).send({
+      message: 'Произошла ошибка при получении карточек',
+    }));
 };
 
 module.exports.createCard = (req, res) => {
