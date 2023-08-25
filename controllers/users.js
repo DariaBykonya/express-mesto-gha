@@ -50,11 +50,9 @@ createUser = (req, res) => {
     .then((user) => res.status(200).send({ data: user }))
     .catch((err) => {
       if (err.name === "ValidationError") {
-        return res
-          .status(400)
-          .send({
-            message: "Переданы некорректные данные при создании пользователя",
-          });
+        return res.status(400).send({
+          message: "Переданы некорректные данные при создании пользователя",
+        });
       }
       return res.status(500).send({ message: "Произошла ошибка на сервере" });
     });
@@ -63,9 +61,12 @@ createUser = (req, res) => {
 // обновление данных пользователя
 updateUser = (req, res) => {
   const { name, about } = req.body;
-  const ownerId = req.user._id;
 
-  User.findByIdAndUpdate(ownerId, { name, about })
+  User.findByIdAndUpdate(
+    req.user._id,
+    { name, about },
+    { new: true, runValidators: true }
+  )
     .then((user) => {
       if (!user) {
         return res
