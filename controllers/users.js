@@ -5,7 +5,7 @@ module.exports.getUsers = (req, res) => {
   User.find({})
     .then((users) => res.status(200).send({ data: users }))
     .catch((err) => {
-      if (err.name === 'CastError') {
+      if (err.name === 'ValidationError') {
         return res
           .status(400)
           .send({ message: 'Некорректно указан id пользователя' });
@@ -30,7 +30,7 @@ module.exports.getUserById = (req, res) => {
       return res.status(200).send({ data: user.toObject() });
     })
     .catch((err) => {
-      if (err.name === 'CastError') {
+      if (err.name === 'ValidationError') {
         return res
           .status(400)
           .send({ message: 'Некорректно указан id пользователя' });
@@ -45,7 +45,7 @@ module.exports.getUserById = (req, res) => {
 module.exports.createUser = (req, res) => {
   const { name, about, avatar } = req.body;
   User.create({ name, about, avatar })
-    .then((user) => res.status(200).send({ data: user }))
+    .then((user) => res.status(201).send({ data: user }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         return res.status(400).send({
