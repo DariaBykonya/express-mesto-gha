@@ -19,13 +19,12 @@ getCard = (req, res) => {
 
 createCard = (req, res) => {
   const userId = req.user._id;
-
   const { name, link } = req.body;
 
   Card.create({ name, link, owner: userId })
     .then((card) => res.status(201).send({ data: card }))
     .catch((err) => {
-      if (err.name === "CastError") {
+      if (err.name === "ValidationError") {
         return res.status(400).send({
           message: "Переданы некорректные данные при создании карточки",
         });
@@ -41,14 +40,16 @@ deleteCard = (req, res) => {
   const ownerId = req.user._id;
   Card.findById(cardId)
     .then((card) => {
-      if (card === null) {
+      if (!card) {
         return res
           .status(404)
           .send({ message: "Карточка с указанным _id не найдена" });
       }
 
       if (card.owner.toString() !== ownerId) {
-        throw new Error("Dont");
+        res
+          .status(403)
+          .send({ message: "Вы не можете удалить чужую карточку" });
       }
       Card.deleteOne(card).then(() =>
         res.status(200).send({ message: "DELETE" })
