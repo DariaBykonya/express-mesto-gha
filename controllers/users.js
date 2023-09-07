@@ -1,56 +1,108 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
+// Errors
+const NotFoundError = require('../errors/NotFoundError');
+const BadRequestError = require('../errors/BadRequestError');
+const UnauthorizedError = require('../errors/UnauthorizedError');
+const ConflictError = require('../errors/ConflictError');
+
+const JWT_SECRET = 'eb28135ebcfc17578f96d4d65b6c7871f2c803be4180c165061d5c2db621c51b';
+
+const SALT_ROUNDS = 10;
 // получение всех пользователей
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => res.status(200).send({ data: users }))
-    .catch(() => res.status(500).send({
-      message: 'Произошла ошибка при получении данных о пользователях',
-    }));
+    .catch(next);
 };
 
 // получение пользователя по id
-module.exports.getUserById = (req, res) => {
+module.exports.getUserById = (req, res, next) => {
   const { userId } = req.params;
 
   User.findById(userId)
     .then((user) => {
       if (!user) {
-        return res
-          .status(404)
-          .send({ message: 'Пользователь по указанному _id не найден' });
+        throw new NotFoundError('Пользователь по указанному _id не найден');
       }
       return res.status(200).send({ data: user.toObject() });
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res
-          .status(400)
-          .send({ message: 'Некорректно указан id пользователя' });
+        next(new BadRequestError('Пользователь по указанному _id не найден'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Произошла ошибка при получении дыннах о пользователях',
-      });
     });
 };
 
 // создание нового пользователя
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
-    .then((user) => res.status(201).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Переданы некорректные данные при создании пользователя',
-        });
-      }
-      return res.status(500).send({ message: 'Произошла ошибка на сервере' });
+module.exports.createUser = (req, res, next) => {
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+
+  bcrypt
+    .hash(password, SALT_ROUNDS, (error, hash) => User.create({
+      name,
+      about,
+      avatar,
+      email,
+      password: hash,
+    })
+      .then((newUser) => {
+        res.status(201).send({ data: newUser });
+      })
+      .catch((err) => {
+        if (err.code === 11000) {
+          return next(
+            new ConflictError('Пользователь с таким email уже существует'),
+          );
+        }
+        if (err.name === 'ValidationError') {
+          return next(
+            new BadRequestError(
+              'Переданы некорректные данные при создании пользователя',
+            ),
+          );
+        }
+        return next(err);
+      }))
+    .catch(next);
+};
+
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, JWT_SECRET, {
+        expiresIn: '7d',
+      });
+      res
+        .cookie('jwt', token, {
+          maxAge: 3600000,
+          httpOnly: true,
+          sameSite: true,
+        })
+        .send({ token });
+    })
+    .catch(() => {
+      next(new UnauthorizedError('Неправильная почта или пароль'));
     });
 };
 
+module.exports.currentUser = (req, res, next) => {
+  const userId = req.user._id;
+  User.findById(userId)
+    .then((user) => res.status(200).send({ data: user }))
+    .catch(next);
+};
+
 // обновление данных пользователя
-module.exports.updateUser = (req, res) => {
+module.exports.updateUser = (req, res, next) => {
   const { name, about } = req.body;
 
   User.findByIdAndUpdate(
@@ -60,27 +112,25 @@ module.exports.updateUser = (req, res) => {
   )
     .then((user) => {
       if (!user) {
-        return res
-          .status(404)
-          .send({ message: 'Пользователь по указанному _id не найден' });
+        throw new NotFoundError('Пользователь по указанному _id не найден');
       }
       return res.status(200).send({ name: user.name, about: user.about });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(400).send({
-          message: 'Переданы некорректные данные при обновлении профиля',
-        });
+        next(
+          new BadRequestError(
+            'Переданы некорректные данные при обновлении профиля',
+          ),
+        );
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message:
-          'Произошла ошибка на сервере при попытке обновления данных профиля',
-      });
     });
 };
 
 // обновление аватара пользователя
-module.exports.updateAvatarUser = (req, res) => {
+module.exports.updateAvatarUser = (req, res, next) => {
   const { avatar } = req.body;
   const ownerId = req.user._id;
 
@@ -91,20 +141,19 @@ module.exports.updateAvatarUser = (req, res) => {
   )
     .then((user) => {
       if (!user) {
-        return res
-          .status(404)
-          .send({ message: 'Пользователь по указанному _id не найден' });
+        throw new NotFoundError('Пользователь по указанному _id не найден');
       }
       return res.status(200).send({ avatar: user.avatar });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(400).send({
-          message: 'Переданы некорректные данные при обновлении аватара',
-        });
+        next(
+          new BadRequestError(
+            'Переданы некорректные данные при обновлении аватара',
+          ),
+        );
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Произошла ошибка на сервере при попытке обновления аватара',
-      });
     });
 };
