@@ -1,7 +1,7 @@
 const { celebrate, Joi } = require('celebrate');
 const BadRequestError = require('../errors/BadRequestError');
 
-const customAvatarValidator = (url) => {
+const customUrlValidator = (url) => {
   const urlValidate = /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
 
   if (urlValidate.test(url)) {
@@ -10,11 +10,20 @@ const customAvatarValidator = (url) => {
   throw new BadRequestError('Некорректный URL');
 };
 
+const customIdValidator = (id) => {
+  const idValidate = /^[0-9a-fA-F]{24}$/;
+
+  if (idValidate.test(id)) {
+    return id;
+  }
+  throw new BadRequestError('Некорректный id');
+};
+
 module.exports.validationCreateUser = celebrate({
   body: Joi.object().keys({
     name: Joi.string().min(2).max(30),
     about: Joi.string().min(2).max(30),
-    avatar: Joi.string().custom(customAvatarValidator),
+    avatar: Joi.string().custom(customUrlValidator),
     email: Joi.string().required().email(),
     password: Joi.string().required(),
   }),
@@ -42,19 +51,19 @@ module.exports.validationUpdateUser = celebrate({
 
 module.exports.validationUpdateAvatar = celebrate({
   body: Joi.object().keys({
-    avatar: Joi.string().required().custom(customAvatarValidator),
+    avatar: Joi.string().required().custom(customUrlValidator),
   }),
 });
 
 module.exports.validationCreateCard = celebrate({
   body: Joi.object().keys({
     name: Joi.string().min(2).max(30).required(),
-    link: Joi.string().required().custom(customAvatarValidator),
+    link: Joi.string().required().custom(customUrlValidator),
   }),
 });
 
 module.exports.validationCardById = celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().required().custom(customAvatarValidator),
+    cardId: Joi.string().required().custom(customIdValidator),
   }),
 });
