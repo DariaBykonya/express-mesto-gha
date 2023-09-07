@@ -41,11 +41,11 @@ module.exports.deleteCard = (req, res, next) => {
   Card.findById(cardId)
     .then((card) => {
       if (!card) {
-        return throw new NotFoundError('Нет карточки с таким id');
+        throw new NotFoundError('Нет карточки с таким id');
       }
 
       if (card.owner.toString() !== ownerId) {
-        return throw new ForbiddenError('Вы не можете удалить чужую карточку');
+        throw new ForbiddenError('Вы не можете удалить чужую карточку');
       }
       return Card.deleteOne(card).then(() => res.status(200).send({ message: 'DELETE' }));
     })
